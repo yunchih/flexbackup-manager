@@ -1,4 +1,4 @@
-#/usr/bin/env python3
+#!/usr/bin/env python
 
 import os
 import subprocess
@@ -10,18 +10,20 @@ import yaml
 CONF_BACKUP_LIST = "home-backup-list.yaml"
 CONF_BACKUP_CONF_TEMPLATE_FILE = "backup.conf.tmpl"
 CONF_BACKUP_MAIN_CONF_TEMPLATE_FILE = "backupninja.conf.tmpl"
-CONF_REQUIRED_HEADER = ["backup_list", "backup_remote"]
+CONF_REQUIRED_HEADER = ["setup", "backup_list", "remote"]
+CONF_SETUP_FIELDS = ["log_directory"]
 CONF_REMOTE_FIELDS = ["host",  "port", "user", "password", "dest_base"]
 CONF_TEMPFILE_PREFIX = "ws-ninja-backup-"
+CONF_TEMPFILE_SUFFIX = ".dup"
 CONF_BACKUP_EXEC = "backupninja"
-CONF_BACKUP_EXEC_EXTRA_ARGS = ["--now", "--test"]
+CONF_BACKUP_EXEC_EXTRA_ARGS = ["--now"]
 
 def open_file(fn):
     try:
         f = open(fn, "r")
         return f.read()
-    except:
-        print("Error opening file: %s" % fn)
+    except OSError as err:
+        print("Error opening file %s: %s" % (fn, err))
         sys.exit(1)
 
 def load_yaml(fn):
@@ -41,12 +43,16 @@ class BackupManager:
     def __init__(self, conf):
         self.conf_check_required_fields(conf)
         self.conf_check_remote(conf)
+        self.conf_check_setup(conf)
 
         self.backup_list = conf["backup_list"]
-        self.remote = conf["backup_remote"]
+        self.remote = conf["remote"]
+        self.setup = conf["setup"]
         self.rotation_cycle = len(self.backup_list)
         self.backup_target_index = self.get_current_rotation_index()
         self.backup_target = self.backup_list[self.backup_target_index]
+
+        self.conf_setup_log_dir(self.setup["log_directory"])
 
     def get_current_rotation_index(self):
         day_since_epoch = int(time.time()) / 86400
@@ -58,12 +64,29 @@ class BackupManager:
                 print("Field %s missing in configuration file" % h)
                 sys.exit(1)
 
-    def conf_check_remote(self, conf):
-        t = conf["backup_remote"]
-        for field in CONF_REMOTE_FIELDS:
-            if not field in t:
-                print("Field backup_remote.%s required" % field)
+    def _check_fields(self, conf, section, fields):
+        for field in fields:
+            if not field in conf[section]:
+                print("Field {}.{} required".format(section, field))
                 sys.exit(1)
+
+    def conf_check_setup(self, conf):
+        self._check_fields(conf, "setup", CONF_SETUP_FIELDS)
+
+    def conf_check_remote(self, conf):
+        self._check_fields(conf, "remote", CONF_REMOTE_FIELDS)
+
+    def conf_setup_log_dir(self, directory):
+        try:
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+        except OSError as err:
+            print("Failed creating log directory {0}: {1}".format(directory, err))
+            sys.exit(1)
+
+        if not os.access(directory, os.W_OK):
+            print("Cannot write to log directory: " + directory)
+            sys.exit(1)
 
     def gen_backup_confs(self):
         main_conf = open_file(CONF_BACKUP_MAIN_CONF_TEMPLATE_FILE)
@@ -80,7 +103,7 @@ class BackupManager:
         confs = []
         for fs in self.backup_target:
             fs_base = os.path.basename(fs)
-            tmp = tempfile.mkstemp(prefix=fs_base, dir=tmpdir)[1]
+            tmp = tempfile.mkstemp(suffix=CONF_TEMPFILE_SUFFIX, prefix=fs_base, dir=tmpdir)[1]
             f = open(tmp, "w")
             f.write(tmpl_conf.format(
                 SRC = fs,
@@ -107,13 +130,24 @@ class BackupManager:
         import atexit
         atexit.register(self.clean_backup_confs)
 
+        # Set up log
+        logfile = "-".join([os.path.basename(fs) for fs in self.backup_target])
+        logfile = os.path.join(self.setup["log_directory"],
+                    "{}-{}.log".format(time.strftime("%Y-%m-%d"), logfile))
+        try:
+            # print("Wrting to logfile: %s" % logfile)
+            logfile_fd = open(logfile, "w")
+        except Exception, error:
+            print("Cannot write to logfile %s: %s" % (logfile, str(error)))
+
         # Do backup
         try:
             cmd = [CONF_BACKUP_EXEC, "-f", self.backup_main_conf] + CONF_BACKUP_EXEC_EXTRA_ARGS
-            print("Running command: %s" % " ".join(cmd))
-            out = subprocess.check_output(cmd)
+            logfile_fd.write("INFO ==> Running command: %s\n" % " ".join(cmd))
+            subprocess.call(cmd, stdout=logfile_fd, stderr=logfile_fd)
         except subprocess.CalledProcessError as e:
-                print(e.output)
+            logfile_fd.write(e.output)
+            print(e.output)
 
 
 if __name__ == "__main__":

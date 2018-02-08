@@ -3,13 +3,15 @@
 # df | grep haven | sort -n -k4 -r | awk '{print $6}'
 # view in nicer readable way:
 # df -h | grep haven | sort -h -k4 -r
-#
-backup_remote:
+
+setup:
+    log_directory: /var/log/ws-home-backup
+remote:
     host: nas-master.csie.ntu.edu.tw
-    port: 7789
-    user: foo
-    password: bar
-    dest_base: csp_backup
+    port: 10734
+    user: secret
+    password: secret
+    dest_base: csp_rsync/duplicity
 
 backup_list:
   # 1
