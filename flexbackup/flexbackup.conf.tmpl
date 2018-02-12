@@ -1,0 +1,130 @@
+# -*-Mode: perl-*-
+# ----------------------------------------------------------------------
+# Flexbackup configuration file
+#   check "flexbackup -help" for usage information
+# ----------------------------------------------------------------------
+# General configuration section
+
+# Archive type?  afio, dump, tar, cpio, star, pax, zip, lha, ar, shar
+# 'copy' is another option if running in archive-to-disk mode.
+# 'filelist' dumps a list of files in your cwd - for debugging setup/exclusion
+$type = 'tar';
+
+$set{@@SET_NAME@@} = "@@SET_CONTENT@@";
+
+# Subtree pruning
+# A space-separated list of directories to prune from each backup.
+# Key is a filesystem or host:dir spec as outlined above
+# regular expressions allowed (not shell-type wildcards!)
+$prune{'/'} = "tmp proc";
+
+# Compression
+$compress = 'gzip'; # one of false/gzip/bzip2/zip/compress/hardware
+$compr_level = '6'; # compression level (1-9) (for gzip/bzip2/zip)
+
+# Buffering program - to help streaming
+$buffer = 'false';          # one of false/buffer/mbuffer
+
+# Device to backup to.  -->> non-rewinding version, please! <<--
+#
+# Examples:
+#    Linux SCSI: /dev/nst0       Linux IDE: /dev/nht0
+#    Linux ftape: /dev/nqft0     FreeBSD SCSI: /dev/nrsa0
+#
+# If a directory, will archive to files in that directory rather than a device
+# If "host:/dev/tapedevice", will use remote tape drive via rsh/ssh
+#
+$device = '@@BACKUP_STORE_DIR@@';
+
+# Block size (in kilobytes!) to use for archive programs and dd. Default is
+# 10 for most things.  Some tape drives need 32 or 64.  Set to '0' to
+# disable all blocking
+$blksize = '10';
+
+# Block size (in bytes!) to use for the tape device, with "mt setblk" or
+# equivalent. If set to 0, will use "variable" block size for the tape
+# device (which is recommended). Comment out or set to "$blksize * 1024" to
+# have it be the same as the archiver block size above.
+$mt_blksize = "0";
+
+# Padding.  True to pad blocks to blocksize
+# (devices only, not used when archiving to files)
+$pad_blocks = 'true';
+
+# Other global flags
+$label = 'true';      # somehow store identifying label in archive?
+$verbose = 'false';    # echo each file?
+$sparse = 'true';     # handle sparse files?
+$indexes = 'false';    # false to turn off all table-of-contents support
+
+# If backing up to files, use static filenames - no date stamp
+# (same level backup of same directory will overwrite old backups)
+$staticfiles = 'true';
+
+# True to try and preserve file access times during backup, if the selected
+# archive program can do so. Note that if this is true, -cnewer checks (file
+# permission/status changes only, not content) are turned off when deciding
+# which files to archive on the local system.
+$atime_preserve = 'false';
+
+# Span across filesytems? ("dump" will ignore this option)
+# Set to "false" (don't) , "local" (all but nfs/smbfs), or "all" (everything)
+$traverse_fs = 'false';
+
+# Exclude files that match these *regular expressions* (not shell wildcards)
+# from the backups (no affect on 'dump' archives). You can list more than one,
+# just keep incrementing the index in the brackets for each.  Also, strip off
+# leading directories (the filesystem specs above or the "-dir" flag).
+# Matches paths, not filenames, so put .* on the front/back as needed.
+# Comment these out to exclude nothing.
+$exclude_expr[0] = '.*/[Cc]ache/.*';
+$exclude_expr[1] = '.*~$';
+$exclude_expr[2] = '\.core$';
+$exclude_expr[3] = '.*/deepest__/.*';	# Exclude System Programming's homework on deep dirs.
+
+# If true (default), and using a tape device, level zero "set" backups
+# assume you want to erase and use a new tape for each set. If false, level
+# zero "set" backups append to tapes.  To force an erase for any backup,
+# use "-erase" on the commandline.
+$erase_tape_set_level_zero = 'true';
+
+# Set this to "true" to make erase operations just call "mt rewind" - not
+# "mt rewind' followed by "mt erase".  (For some tape drives, erase takes
+# hours rather than seconds or is otherwise undesirable)
+$erase_rewind_only = 'false';
+
+# ----------------------------------------------------------------------
+# Log/stamp files, path for temporary files
+
+$logdir = '/var/log/flexbackup';   # directory for log files
+$comp_log = 'gzip';                # compress log? false/gzip/bzip2/compress/zip
+$staticlogs = 'true';             # static log filenames w/ no date stamp
+$prefix = '';		           # log files will start with this prefix
+$tmpdir = '/tmp';                  # used for temporary refdate files, etc
+$stampdir = '/var/lib/flexbackup'; # directory for backup timestamps
+$index = '/var/lib/flexbackup/index'; # DB filename for tape indexes
+$keyfile = '00-index-key';         # filename for keyfile if archiving to dir
+$sprefix = '';	                   # stamp files will start with this prefix
+
+# ----------------------------------------------------------------------
+# Parameters for 'tar' only
+
+# True to show record numbers
+$tar_echo_record_num = 'false';
+
+# ----------------------------------------------------------------------
+# Paths to commands. Default will look for them in $PATH. Use this if
+# you want to set commands explicitly.  You can use full paths or just
+# change command names.
+#
+# Example: If GNU tar is called "gtar" on your system:
+$path{'gzip'} = '/usr/bin/pigz';
+$path{'tar'} = '/bin/tar';
+
+######################################################################
+#
+# $Id: flexbackup.conf,v 1.71 2003/06/21 18:56:06 edwinh Exp $
+# $Name: v1_2_0 $
+#
+# Leave '1;' on the the next line - for perl 'require'
+1;

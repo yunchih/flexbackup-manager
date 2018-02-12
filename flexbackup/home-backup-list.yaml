@@ -1,0 +1,209 @@
+---
+# determined by the command and packed manually:
+# df | grep haven | sort -n -k4 -r | awk '{print $6}'
+# view in nicer readable way:
+# df -h | grep haven | sort -h -k4 -r
+
+## Full list
+#    bebi_phd           62M
+#    alumni_bebi_phd    67M
+#    bebi_master        2.7G
+#    staff              7.5G
+#    alumni_bebi_master 8.3G
+#    visiting           11G
+#    select             12G
+#    inm_phd            39G
+#    ra                 42G
+#    os                 56G
+#    dept               57G
+#    course             66G
+#    inm_master         72G
+#    alumni_inm_master  80G
+#    alumni_inm_phd     146G
+#    phd                166G
+#    ta                 182G
+#    alumni_phd         227G
+#    master             244G
+#    council            265G
+#    undergrad          312G
+#    alumni_master      375G
+#    alumni_undergrad   490G
+#    faculty            921G
+
+## Tier 1 list
+#    bebi_phd           62M
+#    bebi_master        2.7G
+#    staff              7.5G
+#    inm_phd            39G
+#    ra                 42G
+#    dept               57G
+#    course             66G
+#    inm_master         72G
+#    phd                166G
+#    ta                 182G
+#    master             244G
+#    council            265G
+#    undergrad          312G
+#    faculty            921G
+
+## Tier 2 list
+#    alumni_bebi_phd    67M
+#    alumni_bebi_master 8.3G
+#    visiting           11G
+#    select             12G
+#    os                 56G
+#    alumni_inm_master  80G
+#    alumni_inm_phd     146G
+#    alumni_phd         227G
+#    alumni_master      375G
+#    alumni_undergrad   490G
+
+## Flexbackup groupings
+## Tier 1
+#    course, bebi_master, bebi_phd
+#    inm_master, inm_phd
+#    dept, ra, staff
+#    phd
+#    ta
+#    master
+#    council
+#    undergrad
+#    faculty
+#
+## Tier 2
+#    alumni_bebi_master, alumni_bebi_phd
+#    select, visiting
+#    os
+#    alumni_inm_master
+#    alumni_inm_phd
+#    alumni_phd
+#    alumni_master
+#    alumni_undergrad
+
+# Whether or not to separate the
+# first level sub-directories into
+# different tarball
+#
+# For example:
+#   /e/undergrad/{02,03,04,05} will be backuped into 4 tarballs
+root_directory: "/e"
+dest_directory: "/backup/nfs"
+
+subdirectory_expansions:
+    alumni_bebi_master: true
+    alumni_bebi_phd:    true
+    alumni_inm_master:  true
+    alumni_inm_phd:     true
+    alumni_master:      true
+    alumni_phd:         true
+    alumni_undergrad:   true
+    bebi_master:        true
+    bebi_phd:           true
+    council:            false
+    course:             false
+    dept:               true
+    faculty:            false
+    inm_master:         true
+    inm_phd:            true
+    master:             true
+    os:                 true
+    phd:                true
+    phd:                true
+    ra:                 false
+    select:             false
+    staff:              false
+    ta:                 false
+    undergrad:          true
+    visiting:           false
+
+
+# naiive bin packing ...
+backup_tiers:
+    tier1:
+        # 1
+        - - bebi_master
+          - bebi_phd
+          - course
+        # 2
+        - - inm_master
+          - inm_phd
+        # 3
+        - - dept
+          - ra
+          - staff
+        # 4
+        - - phd
+        # 5
+        - - ta
+        # 6
+        - - master
+        # 7
+        - - council
+        # 8
+        - - undergrad
+        # 9
+        - - faculty
+    tier2:
+        # 1
+        - - alumni_bebi_master
+          - alumni_bebi_phd
+        # 2
+        - - select
+        # 3
+        - - visiting
+        # 4
+        - - os
+        # 5
+        - - alumni_inm_master
+        # 6
+        - - alumni_inm_phd
+        # 7
+        - - alumni_phd
+        # 8
+        - - alumni_master
+        # 9
+        - - alumni_undergrad
+
+
+backup_list:
+  # 1
+  - - /e/faculty
+  # 2
+  - - /e/alumni_master
+  # 3
+  - - /e/alumni_undergrad
+  # 4
+  - - /e/master
+  # 5
+  - - /e/alumni_inm_master
+  # 6
+  - - /e/alumni_inm_phd
+  # 7
+  - - /e/undergrad
+  # 8
+  - - /e/alumni_phd
+  # 9
+  - - /e/phd
+  # 10
+  - - /e/inm_phd
+  # 11
+  - - /e/inm_master
+  # 12
+  - - /e/ta
+  # 13
+  - - /e/course
+  # 14
+  - - /e/ra
+  # 15
+  - - /e/council
+    - /e/os
+  # 16
+  - - /e/bebi_master
+    - /e/bebi_phd
+    - /e/select
+  # 17
+  - - /e/dept
+    - /e/alumni_bebi_master
+    - /e/visiting
+    - /e/alumni_bebi_phd
+    - /e/staff
