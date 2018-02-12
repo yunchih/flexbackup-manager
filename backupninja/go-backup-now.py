@@ -16,7 +16,7 @@ CONF_REMOTE_FIELDS = ["host",  "port", "user", "password", "dest_base"]
 CONF_TEMPFILE_PREFIX = "ws-ninja-backup-"
 CONF_TEMPFILE_SUFFIX = ".dup"
 CONF_BACKUP_EXEC = "backupninja"
-CONF_BACKUP_EXEC_EXTRA_ARGS = ["--now"]
+CONF_BACKUP_EXEC_EXTRA_ARGS = ["--now", "--debug"]
 
 def open_file(fn):
     try:
@@ -52,7 +52,7 @@ class BackupManager:
         self.backup_target_index = self.get_current_rotation_index()
         self.backup_target = self.backup_list[self.backup_target_index]
 
-        self.conf_setup_log_dir(self.setup["log_directory"])
+        # self.conf_setup_log_dir(self.setup["log_directory"])
 
     def get_current_rotation_index(self):
         day_since_epoch = int(time.time()) / 86400
@@ -135,18 +135,19 @@ class BackupManager:
         logfile = os.path.join(self.setup["log_directory"],
                     "{}-{}.log".format(time.strftime("%Y-%m-%d"), logfile))
         try:
-            # print("Wrting to logfile: %s" % logfile)
-            logfile_fd = open(logfile, "w")
+            print("Wrting to logfile: %s" % logfile)
+            # logfile_fd = open(logfile, "w")
         except Exception, error:
             print("Cannot write to logfile %s: %s" % (logfile, str(error)))
 
         # Do backup
         try:
             cmd = [CONF_BACKUP_EXEC, "-f", self.backup_main_conf] + CONF_BACKUP_EXEC_EXTRA_ARGS
-            logfile_fd.write("INFO ==> Running command: %s\n" % " ".join(cmd))
-            subprocess.call(cmd, stdout=logfile_fd, stderr=logfile_fd)
+            # logfile_fd.write("INFO ==> Running command: %s\n" % " ".join(cmd))
+            # subprocess.call(cmd, stdout=logfile_fd, stderr=logfile_fd)
+            subprocess.call(cmd)
         except subprocess.CalledProcessError as e:
-            logfile_fd.write(e.output)
+            # logfile_fd.write(e.output)
             print(e.output)
 
 
