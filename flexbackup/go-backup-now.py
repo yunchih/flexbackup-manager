@@ -17,28 +17,20 @@ CONF_BACKUP_EXEC_EXTRA_ARGS = []
 CONF_TIER_LEVELING = 2
 CONF_LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
-def open_file(fn):
-    try:
-        f = open(fn, "r")
-        return f.read()
-    except OSError as err:
-        logging.error("Error opening file %s: %s" % (fn, err))
-        sys.exit(1)
-
-def load_yaml(fn):
-    try:
-        txt = open_file(fn)
-        return yaml.load(txt, yaml.SafeLoader)
-    except yaml.YAMLError as exc:
-        print("Error while parsing YAML file: %s" % fn)
-        if hasattr(exc, 'problem_mark'):
-            logging.error("YAML error\n:{}\n{} {}".format(
-                str(exc.problem_mark),
-                str(exc.problem),
-                str(exc.context) if exc.context else ""))
-        sys.exit(1)
-
 class BackupManager:
+    @staticmethod
+    def flatten(fatlist):
+        return [item for sublist in fatlist for item in sublist]
+
+    @staticmethod
+    def open_file(fn):
+        try:
+            f = open(fn, "r")
+            return f.read()
+        except OSError as err:
+            logging.error("Error opening file %s: %s" % (fn, err))
+            sys.exit(1)
+
     def __init__(self, conf, logger, dry_run):
         self.root_dir = conf['root_directory']
         self.backup_dest = conf['dest_directory']
@@ -58,10 +50,6 @@ class BackupManager:
         if err_msg:
             self.log.error(err_msg)
             sys.exit(1)
-
-    @staticmethod
-    def flatten(fatlist):
-        return [item for sublist in fatlist for item in sublist]
 
     def get_backup_cycle_listing(self):
         # a: tier1
@@ -116,7 +104,7 @@ class BackupManager:
 
     def gen_conf(self, bset):
         if not self.conf_template:
-            self.conf_template = open_file(CONF_BACKUP_CONF_TEMPLATE_FILE)
+            self.conf_template = self.open_file(CONF_BACKUP_CONF_TEMPLATE_FILE)
             self.conf_file = tempfile.mkstemp(prefix=CONF_TEMPFILE_PREFIX)[1]
 
         # Each set has multiple directories
@@ -172,7 +160,7 @@ class BackupManager:
 
     def do_backup_summary(self):
         full = self.get_full_backup_set()
-        inc  = self.get_inc_backup_set()
+        inc = self.get_inc_backup_set()
         self.log.info("Incremental backup:\t" + ", ".join(self.flatten(inc)))
         self.log.info("Full backup:\t" + ", ".join(self.flatten(full)))
 
@@ -183,6 +171,19 @@ class BackupManager:
         self.do_backup_summary()
         self.do_backup_inc()
         self.do_backup_full()
+
+def load_yaml(fn):
+    try:
+        txt = BackupManager.open_file(fn)
+        return yaml.load(txt, yaml.SafeLoader)
+    except yaml.YAMLError as exc:
+        print("Error while parsing YAML file: %s" % fn)
+        if hasattr(exc, 'problem_mark'):
+            logging.error("YAML error\n:{}\n{} {}".format(
+                str(exc.problem_mark),
+                str(exc.problem),
+                str(exc.context) if exc.context else ""))
+        sys.exit(1)
 
 def main():
     logging.basicConfig(level=logging.DEBUG, format=CONF_LOG_FORMAT)
