@@ -2,6 +2,7 @@
 import copy
 import logging
 import os
+import stat
 import subprocess
 import sys
 import tempfile
@@ -34,7 +35,8 @@ class BackupManager:
     def __init__(self, conf, logger, dry_run):
         self.root_dir = conf['root_directory']
         self.backup_dest = conf['dest_directory']
-        self.conf_file = ""
+        self.tmpfiles = {}
+        self.tmpfiles["conf"] = ""
         self.conf_template = ""
         self.log = logger
 
@@ -45,6 +47,9 @@ class BackupManager:
 
         self.backup_cycle_listing = self.get_backup_cycle_listing()
         self.backup_cycle_index = self.get_cur_cycle_index(len(self.backup_cycle_listing))
+
+        self.gen_temp_exec('gzip', 'exec /usr/bin/env pigz -p 10 -f "$@"')
+        self.gen_temp_exec('tar', 'exec /usr/bin/env nocache /bin/tar "$@"')
 
     def err(self, err_msg=""):
         if err_msg:
@@ -105,34 +110,49 @@ class BackupManager:
     def gen_conf(self, bset):
         if not self.conf_template:
             self.conf_template = self.open_file(CONF_BACKUP_CONF_TEMPLATE_FILE)
-            self.conf_file = tempfile.mkstemp(prefix=CONF_TEMPFILE_PREFIX)[1]
+            self.tmpfiles["conf"] = tempfile.mkstemp(prefix=CONF_TEMPFILE_PREFIX)[1]
 
         # Each set has multiple directories
         bdirs = [" ".join(self.get_directory_listing(bdir)) for bdir in bset]
         conf_str = self.conf_template
         for l, r in (("@@SET_NAME@@", self.gen_set_name(bset)),
                      ("@@SET_CONTENT@@", " ".join(bdirs)),
-                     ("@@BACKUP_STORE_DIR@@", self.backup_dest)):
+                     ("@@BACKUP_STORE_DIR@@", self.backup_dest),
+                     ("@@GZIP@@", self.tmpfiles['gzip']),
+                     ("@@TAR@@", self.tmpfiles['tar'])):
             conf_str = conf_str.replace(l, r)
 
         # Write main conf
-        f = open(self.conf_file, "w")
+        f = open(self.tmpfiles["conf"], "w")
         f.write(conf_str)
         f.close()
 
-    def clean_conf_file(self):
-        try:
-            if self.conf_file:
-                os.unlink(self.conf_file)
-        except OSError as err:
-            self.log.warning("Error removing file %s: %s" % (self.conf_file, err))
+    def clean_tmpfiles(self):
+        for (_, tmpf) in self.tmpfiles.items():
+            try:
+                if tmpf and os.path.isfile(tmpf):
+                    os.unlink(tmpf)
+            except OSError as err:
+                self.log.warning("Error removing file %s: %s" % (tmpf, err))
+
+    def gen_temp_exec(self, bin_name, bin_content):
+        assert type(bin_name) == str
+        tmpf = tempfile.mkstemp(prefix=CONF_TEMPFILE_PREFIX + bin_name)[1]
+
+        f = open(tmpf, "w")
+        f.write("#!/bin/sh\n")
+        f.write(bin_content + "\n")
+        f.close()
+
+        os.chmod(tmpf, os.stat(tmpf).st_mode | stat.S_IEXEC)
+        self.tmpfiles[bin_name] = tmpf
 
     def do_run_backup_prog(self, bset, level):
         assert level == "full" or level == "incremental"
         cmd = [
             CONF_BACKUP_EXEC,
             self.dry_run,
-            "-c", self.conf_file,
+            "-c", self.tmpfiles["conf"],
             "-level", level,
             "-set", self.gen_set_name(bset),
             ] + CONF_BACKUP_EXEC_EXTRA_ARGS
@@ -166,8 +186,10 @@ class BackupManager:
 
     def do_backup(self):
         import atexit
-        atexit.register(self.clean_conf_file)
+        atexit.register(self.clean_tmpfile)
 
+        self.log.debug("Running cyclic backup at index (%s/%s)",
+                       self.backup_cycle_index, len(self.backup_cycle_listing))
         self.do_backup_summary()
         self.do_backup_inc()
         self.do_backup_full()
