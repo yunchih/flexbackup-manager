@@ -10,7 +10,7 @@
 # 'filelist' dumps a list of files in your cwd - for debugging setup/exclusion
 $type = 'tar';
 
-$set{@@SET_NAME@@} = "@@SET_CONTENT@@";
+$set{"@@SET_NAME@@"} = "@@SET_CONTENT@@";
 
 # Subtree pruning
 # A space-separated list of directories to prune from each backup.
@@ -136,7 +136,7 @@ $tar_echo_record_num = 'false';
 # change command names.
 #
 # Example: If GNU tar is called "gtar" on your system:
-$path{'gzip'} = '@@GZIP@@;
+$path{'gzip'} = '@@GZIP@@';
 $path{'tar'} = '@@TAR@@';
 
 ######################################################################
