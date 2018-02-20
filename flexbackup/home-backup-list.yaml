@@ -116,6 +116,9 @@ subdirectory_expansions:
     undergrad:          true
     visiting:           false
 
+incremental_backup_frequency:
+    tier1: 1 # daily
+    tier2: 3 # once every 3 day
 
 # naiive bin packing ...
 backup_tiers:

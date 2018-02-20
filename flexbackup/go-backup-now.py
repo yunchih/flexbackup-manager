@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import copy
+import datetime
 import logging
 import os
+import shutil
 import stat
 import subprocess
 import sys
@@ -90,7 +92,11 @@ CONF_TEMPFILE_PREFIX = "flexbackup-"
 CONF_SUBDIR_EXCLUDE_LIST = ["lost+found"]
 CONF_BACKUP_EXEC = "flexbackup"
 CONF_BACKUP_EXEC_EXTRA_ARGS = []
+CONF_BACKUP_TIER1_RETENTION = 2
+CONF_BACKUP_TIER2_RETENTION = 1
 CONF_LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+CONF_DATE_FORMAT = "%Y-%m-%d"
+CONF_BACKUP_CURDIR = "current"
 
 class BackupManager:
     """ The backup manager class """
@@ -100,26 +106,43 @@ class BackupManager:
         return [item for sublist in fatlist for item in sublist]
 
     @staticmethod
-    def open_file(fn):
+    def open_file(filename):
         try:
-            f = open(fn, "r")
+            f = open(filename, "r")
             return f.read()
         except OSError as err:
-            logging.error("Error opening file %s: %s" % (fn, err))
+            logging.error("Error opening file %s: %s" % (filename, err))
             sys.exit(1)
 
+    @staticmethod
+    def get_unix_ts_from_date(date_str):
+        try:
+            d = datetime.datetime.strptime(date_str, CONF_DATE_FORMAT)
+            return time.mktime(d.timetuple())
+        except ValueError:
+            return -1
+
+    @staticmethod
+    def get_today():
+        return time.strftime(CONF_DATE_FORMAT)
+
     def __init__(self, conf, logger, dry_run):
-        self.root_dir = conf['root_directory']
-        self.backup_dest = conf['dest_directory']
+        self.root_dir = self.get(conf, 'root_directory')
+        self.backup_dest = self.get(conf, 'dest_directory')
         self.tmpfiles = {}
         self.tmpfiles["conf"] = ""
         self.conf_template = ""
         self.log = logger
 
-        self.tier1 = conf['backup_tiers']['tier1']
-        self.tier2 = conf['backup_tiers']['tier2']
-        self.subdir_expansions = conf['subdirectory_expansions']
+        tiers = self.get(conf, 'backup_tiers')
+        self.tier1 = self.get(tiers, 'tier1', "backup_tiers")
+        self.tier2 = self.get(tiers, 'tier2', "backup_tiers")
+        self.subdir_expansions = self.get(conf, 'subdirectory_expansions')
         self.dry_run = "-n" if dry_run else ""
+
+        inc_freqs = self.get(conf, "incremental_backup_frequency")
+        self.tier1_inc_freq = int(self.get(inc_freqs, "tier1", "incremental_backup_frequency"))
+        self.tier2_inc_freq = int(self.get(inc_freqs, "tier2", "incremental_backup_frequency"))
 
         self.backup_cycle_listing = self.get_backup_cycle_listing()
         self.backup_cycle_index = self.get_cur_cycle_index(len(self.backup_cycle_listing))
@@ -311,7 +334,46 @@ class BackupManager:
 
     def do_backup_gc(self):
         """ Delete stale backups """
-        # TODO
+        def _do_backup_gc_each(bset, retention_cnt):
+            tdir = os.path.dirname(self.get_backup_dir(bset))
+            if not os.path.exists(tdir):
+                return
+
+            # Pick candidates to be removed
+            rm_cands = []
+            for d in os.listdir(tdir):
+                path = os.path.join(tdir, d)
+                old_backup_date = self.get_unix_ts_from_date(d)
+                if os.path.isdir(path) and old_backup_date > 0:
+                    rm_cands.append((path, old_backup_date))
+
+            # Sort by backup date, remove stale backup
+            # starting from the oldest
+            rm_cands.sort(key=lambda d: d[1])
+            do_clean = False
+            for (rm_path, _) in rm_cands[:-retention_cnt]:
+                do_clean = True
+                try:
+                    self.log.info("Removing old backup: %s" % rm_path)
+                    shutil.rmtree(rm_path)
+                except OSError as err:
+                    self.err("Error removing directory '%s' during GC: %s" % (rm_path, err))
+            return do_clean
+
+        def _do_backup_gc(bset_list, retention_cnt=1):
+            for bset in bset_list:
+                try:
+                    if not _do_backup_gc_each(bset, retention_cnt):
+                        self.log.info("No stale dataset detected during GC: %s", bset)
+                except OSError as err:
+                    self.err("Error listing directory for garbage collection: %s" % err)
+
+        self.log.debug("Doing backup garbage collection ...")
+        tier1 = self.flatten(self.tier1)
+        _do_backup_gc(tier1, CONF_BACKUP_TIER1_RETENTION)
+        tier2 = self.flatten(self.tier2)
+        _do_backup_gc(tier2, CONF_BACKUP_TIER2_RETENTION)
+
 
     def do_backup(self):
         """ Backup main method """
@@ -325,6 +387,7 @@ class BackupManager:
         self.do_backup_summary()
         self.do_backup_inc()
         self.do_backup_full()
+        self.do_backup_gc()
 
 def load_yaml(fn):
     """ Load and read an yaml file """
