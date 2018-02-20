@@ -252,17 +252,17 @@ class BackupManager:
         # Each set has multiple directories
         bdirs = " ".join(self.get_directory_listing(bset))
         conf_str = self.conf_template
-        for l, r in (("@@SET_NAME@@", self.gen_set_name(bset)),
-                     ("@@SET_CONTENT@@", " ".join(bdirs)),
-                     ("@@BACKUP_STORE_DIR@@", self.backup_dest),
-                     ("@@GZIP@@", self.tmpfiles['gzip']),
-                     ("@@TAR@@", self.tmpfiles['tar'])):
-            conf_str = conf_str.replace(l, r)
+        for lhs, rhs in (("@@SET_NAME@@", bset),
+                         ("@@SET_CONTENT@@", bdirs),
+                         ("@@BACKUP_STORE_DIR@@", self.get_backup_dir(bset)),
+                         ("@@GZIP@@", self.tmpfiles['gzip']),
+                         ("@@TAR@@", self.tmpfiles['tar'])):
+            conf_str = conf_str.replace(lhs, rhs)
 
         # Write main conf
-        f = open(self.tmpfiles["conf"], "w")
-        f.write(conf_str)
-        f.close()
+        conf = open(self.tmpfiles["conf"], "w")
+        conf.write(conf_str)
+        conf.close()
 
     def clean_tmpfiles(self):
         """ Remove all the temporary file we have created. """
@@ -284,6 +284,23 @@ class BackupManager:
         f.write("#!/bin/sh\n")
         f.write(bin_content + "\n")
         f.close()
+    def get_backup_dir(self, bset):
+        return os.path.join(self.backup_dest, bset, CONF_BACKUP_CURDIR)
+
+    def gen_symlink_atomic(self, target, link):
+        """ Atomically updating a symlink """
+        tmpd = tempfile.mkdtemp()
+        tmplink = os.path.join(tmpd, "l")
+        try:
+            if os.path.islink(link):
+                os.symlink(target, tmplink)
+                os.rename(tmplink, link)
+            else:
+                os.symlink(target, link)
+        except OSError as err:
+            shutil.rmtree(tmpd)
+            self.err("Failed creating symlink: %s -> %s" % (link, target))
+        shutil.rmtree(tmpd)
 
         os.chmod(tmpf, os.stat(tmpf).st_mode | stat.S_IEXEC)
         self.tmpfiles[bin_name] = tmpf
@@ -291,12 +308,19 @@ class BackupManager:
     def do_run_backup_prog(self, bset, level):
         """ Run the target backup program """
         assert level == "full" or level == "incremental"
+
+        backup_dir = self.get_backup_dir(bset)
+        if not os.path.exists(backup_dir):
+            self.log.info("Skip %s backup: missing backup destination directory: %s" %
+                          (level, backup_dir))
+            return
+
         cmd = [
             CONF_BACKUP_EXEC,
             self.dry_run,
             "-c", self.tmpfiles["conf"],
             "-level", level,
-            "-set", self.gen_set_name(bset),
+            "-set", bset,
             ] + CONF_BACKUP_EXEC_EXTRA_ARGS
 
         try:
@@ -304,15 +328,17 @@ class BackupManager:
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             # Poll process output until it stops
             while process.poll() is None:
-                self.log.info(process.stdout.read().decode())
+                self.log.info(process.stdout.read().decode('utf-8'))
                 time.sleep(0.5)
         except subprocess.CalledProcessError as e:
             self.log.error(e.output)
 
-    def do_run_backup(self, bset_list, level):
+    def do_run_backup(self, bset_list, level, create_dir=False):
         """ Loop through today's backup set """
         for bset in bset_list:
             self.gen_conf(bset)
+            if create_dir:
+                self.do_backup_create_target_dir(bset)
             self.do_run_backup_prog(bset, level)
 
     def do_backup_inc(self):
@@ -321,14 +347,28 @@ class BackupManager:
 
     def do_backup_full(self):
         """ Full backup """
-        self.do_run_backup(self.get_full_backup_set(), "full")
+        self.do_run_backup(self.get_full_backup_set(), "full", create_dir=True)
 
     def do_backup_summary(self):
         """ Summarize what will be backuped """
         full = self.get_full_backup_set()
         inc = self.get_inc_backup_set()
-        self.log.info("Incremental backup:\t" + ", ".join(self.flatten(inc)))
-        self.log.info("Full backup:\t" + ", ".join(self.flatten(full)))
+        self.log.info("Incremental backup:\t" + ", ".join(inc))
+        self.log.info("Full backup:\t" + ", ".join(full))
+
+    def do_backup_create_target_dir(self, bset):
+        link = self.get_backup_dir(bset)
+        base, target = os.path.dirname(link), self.get_today()
+        target_full = os.path.join(base, target)
+
+        try:
+            if not os.path.exists(target_full):
+                os.makedirs(target_full)
+        except OSError as err:
+            self.err("Error creating directory %s: %s" % (target, err))
+
+        self.gen_symlink_atomic(target, link)
+
 
     def do_backup_gc(self):
         """ Delete stale backups """
