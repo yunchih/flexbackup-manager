@@ -153,7 +153,7 @@ class BackupManager:
         # Don't let pigz consume all CPUs, just part of them
         self.gen_temp_exec('gzip', 'exec /usr/bin/env pigz -p 10 -f "$@"')
         # Try using 'nocache' to prevent cache pollution
-        self.gen_temp_exec('tar', 'exec /usr/bin/env nocache -n 2 /bin/tar "$@"')
+        self.gen_temp_exec('tar', 'exec /usr/bin/env nocache -n 2 /bin/tar --numeric-owner "$@"')
 
     def err(self, err_msg=""):
         """ Generate error message and exit """
