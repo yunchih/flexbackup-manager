@@ -161,23 +161,19 @@ class BackupManager:
             self.log.error(err_msg)
             sys.exit(1)
 
-    def get_backup_cycle_listing(self):
-        """
-        A backup cycle consists of two tier1 and one tier2.
-        tier1 runs first, then followed by interception of
-        tier2 and the other tier1.  Here's an example full
-        cycle:
+    def get(self, conf, key, parent=""):
+        def die(err):
+            if parent:
+                key = "{}.{}".format(parent, key)
+            logging.error("{} '{}' in configuration file!".format(err, key))
+            sys.exit(1)
 
-         a: tier1
-         b: tier2
-         a1, a2, a3, b1, a1, b2, a2, b3, a3, a1, a2, a3, b1, ....
-         |---------------------------------|
-                      one cycle
-
-        Their mean-of-between-backup time are:
-
-            tier1: len(tier1) + len(tier2)/2
-            tier2: len(tier1)*2 + len(tier2)
+        if not isinstance(key, str):
+            die("Wrong format")
+        try:
+            return conf[key]
+        except KeyError:
+            die("Missing field")
 
     def get_backup_cycle_listing(self):
         """
@@ -185,8 +181,8 @@ class BackupManager:
         """
 
         listing = copy.copy(self.tier1)
-        for t1, t2 in zip(self.tier2, self.tier1):
-            listing += [t1, t2]
+        for tier1, tier2 in zip(self.tier2, self.tier1):
+            listing += [tier1, tier2]
 
         # collect remaining list items
         zipped_len = min(len(self.tier1), len(self.tier2))
@@ -201,19 +197,24 @@ class BackupManager:
 
         returns: A list of backup targets
         """
-        inc_set = copy.copy(self.tier1)
-        if self.backup_cycle_index % 2 == 0:
+
+        inc_set = []
+        if self.backup_cycle_index % self.tier1_inc_freq == 0:
+            inc_set += self.tier1
+        if self.backup_cycle_index % self.tier2_inc_freq == 0:
             inc_set += self.tier2
 
         # Don't do incremental backup on today's full backup set
+        inc_set = self.flatten(inc_set)
         full_backup_set = self.get_full_backup_set()
         for bset in full_backup_set:
-            inc_set.remove(bset)
+            if bset in inc_set:
+                inc_set.remove(bset)
 
         return inc_set
 
     def get_full_backup_set(self):
-        return [self.backup_cycle_listing[self.backup_cycle_index]]
+        return self.backup_cycle_listing[self.backup_cycle_index]
 
     def get_cur_cycle_index(self, cycle_len):
         """
@@ -233,26 +234,23 @@ class BackupManager:
             self.err("Backup set {} not found!".format(bdir))
 
         path = os.path.join(self.root_dir, bdir)
+        if not os.path.isdir(path):
+            self.err("Directory not found: %s" % path)
         if self.subdir_expansions[bdir]:
             # expand one level of sub-directories
-            listing = [os.path.join(path, d) for d in os.listdir(path) if not d
-                       in CONF_SUBDIR_EXCLUDE_LIST]
+            listing = [os.path.join(path, d) for d in os.listdir(path)
+                       if not d in CONF_SUBDIR_EXCLUDE_LIST]
             return [d for d in listing if os.path.isdir(d)]
         return [path]
 
-    def gen_set_name(self, bset):
-        return "___".join(bset)
-
     def gen_conf(self, bset):
-        """
-        Generate our own flexbackup.conf
-        """
+        """ Generate our own flexbackup.conf """
         if not self.conf_template:
             self.conf_template = self.open_file(CONF_BACKUP_CONF_TEMPLATE_FILE)
             self.tmpfiles["conf"] = tempfile.mkstemp(prefix=CONF_TEMPFILE_PREFIX)[1]
 
         # Each set has multiple directories
-        bdirs = [" ".join(self.get_directory_listing(bdir)) for bdir in bset]
+        bdirs = " ".join(self.get_directory_listing(bset))
         conf_str = self.conf_template
         for l, r in (("@@SET_NAME@@", self.gen_set_name(bset)),
                      ("@@SET_CONTENT@@", " ".join(bdirs)),
@@ -382,20 +380,20 @@ class BackupManager:
         import atexit
         atexit.register(self.clean_tmpfiles)
 
-        self.log.debug("Running cyclic backup at index (%s/%s)",
-                       self.backup_cycle_index, len(self.backup_cycle_listing))
+        self.log.debug("Running cyclic backup at index (%s/%s)"
+                       % (self.backup_cycle_index, len(self.backup_cycle_listing)))
         self.do_backup_summary()
         self.do_backup_inc()
         self.do_backup_full()
         self.do_backup_gc()
 
-def load_yaml(fn):
+def load_yaml(filename):
     """ Load and read an yaml file """
     try:
-        txt = BackupManager.open_file(fn)
+        txt = BackupManager.open_file(filename)
         return yaml.load(txt, yaml.SafeLoader)
     except yaml.YAMLError as exc:
-        print("Error while parsing YAML file: %s" % fn)
+        print("Error while parsing YAML file: %s" % filename)
         if hasattr(exc, 'problem_mark'):
             logging.error("YAML error\n:{}\n{} {}".format(
                 str(exc.problem_mark),
@@ -407,7 +405,7 @@ def main():
     logging.basicConfig(level=logging.DEBUG, format=CONF_LOG_FORMAT)
     logger = logging.getLogger("backup")
     conf = load_yaml(CONF_BACKUP_LIST)
-    backup_manager = BackupManager(conf, logger, dry_run=True)
+    backup_manager = BackupManager(conf, logger, dry_run=False)
     backup_manager.do_backup()
 
 if __name__ == "__main__":
