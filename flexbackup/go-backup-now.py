@@ -278,12 +278,22 @@ class BackupManager:
         Generate a temporary shell script for the main backup program.
         """
         assert isinstance(bin_name, str)
-        tmpf = tempfile.mkstemp(prefix=CONF_TEMPFILE_PREFIX + bin_name)[1]
+        tmpf = os.path.join(tempfile._get_default_tempdir(),
+                            ".____" + CONF_TEMPFILE_PREFIX + bin_name)
+        self.tmpfiles[bin_name] = tmpf
 
-        f = open(tmpf, "w")
-        f.write("#!/bin/sh\n")
-        f.write(bin_content + "\n")
-        f.close()
+        content = "#!/bin/sh\n" + bin_content + "\n"
+        # Just create an executable file first
+        # Cannot use chmod as that'll keep the
+        # written file opened and /bin/sh will
+        # refuse to execute it.
+        # see: https://github.com/moby/moby/issues/9547
+        fd = os.open(tmpf, os.O_CREAT | os.O_TRUNC | os.O_DIRECT | os.O_RDWR, 509)
+        os.close(fd)
+
+        with open(tmpf, "w") as tmp:
+            tmp.write(content)
+
     def get_backup_dir(self, bset):
         return os.path.join(self.backup_dest, bset, CONF_BACKUP_CURDIR)
 
@@ -302,8 +312,6 @@ class BackupManager:
             self.err("Failed creating symlink: %s -> %s" % (link, target))
         shutil.rmtree(tmpd)
 
-        os.chmod(tmpf, os.stat(tmpf).st_mode | stat.S_IEXEC)
-        self.tmpfiles[bin_name] = tmpf
 
     def do_run_backup_prog(self, bset, level):
         """ Run the target backup program """
