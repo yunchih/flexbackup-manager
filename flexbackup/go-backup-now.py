@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import argparse
 import copy
 import datetime
 import logging
@@ -87,7 +88,13 @@ import yaml
 #
 #
 
-CONF_BACKUP_LIST = "home-backup-list.yaml"
+DESCRIPTION = '''
+    This script is a backup scheduler built upon flexbackup
+    that manages backup set according to their tiers and
+    corresponding SLAs.  We currently support two tiers with
+    different SLAs.
+'''
+
 CONF_BACKUP_CONF_TEMPLATE_FILE = "flexbackup.conf.tmpl"
 CONF_TEMPFILE_PREFIX = "flexbackup-"
 CONF_SUBDIR_EXCLUDE_LIST = ["lost+found"]
@@ -326,7 +333,7 @@ class BackupManager:
                 os.symlink(target, link)
         except OSError as err:
             shutil.rmtree(tmpd)
-            self.err("Failed creating symlink: %s -> %s" % (link, target))
+            self.err("Failed creating symlink: %s -> %s: %s" % (link, target, err))
         shutil.rmtree(tmpd)
 
 
@@ -472,9 +479,17 @@ def load_yaml(filename):
         sys.exit(1)
 
 def main():
+    # cmd arguments
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    parser.add_argument("-c", "--config", action='store',
+                        type=str, required=True, metavar="[config file path]",
+                        help="The path to the configuration file in YAML format")
+    args = parser.parse_args()
+
+    # logging
     logging.basicConfig(level=logging.DEBUG, format=CONF_LOG_FORMAT)
     logger = logging.getLogger("backup")
-    conf = load_yaml(CONF_BACKUP_LIST)
+    conf = load_yaml(args.config)
     backup_manager = BackupManager(conf, logger, dry_run=False)
     backup_manager.do_backup()
 
