@@ -12,7 +12,7 @@ import time
 import yaml
 
 #
-# WSLAB Flexbackup Wrapper Script
+# Flexbackup Scheduling Script
 #
 # Introduction
 #   This script is a backup scheduler built upon flexbackup
@@ -83,6 +83,7 @@ import yaml
 #
 #   3. Backup retention period:
 #      Tier 1 keeps two set of full/incremental backup data, while Tier 2 keeps one.
+#      See the CONF_BACKUP_TIER*_RETENTION option below
 #
 #
 
@@ -163,6 +164,7 @@ class BackupManager:
             sys.exit(1)
 
     def get(self, conf, key, parent=""):
+        """ Retrieve configuration entry """
         def die(err):
             if parent:
                 key = "{}.{}".format(parent, key)
@@ -309,6 +311,7 @@ class BackupManager:
             tmp.write(content)
 
     def get_backup_dir(self, bset):
+        """ Generate backup destination directory """
         return os.path.join(self.backup_dest, bset, CONF_BACKUP_CURDIR)
 
     def gen_symlink_atomic(self, target, link):
@@ -379,6 +382,11 @@ class BackupManager:
         self.log.info("Full backup:\t" + ", ".join(full))
 
     def do_backup_create_target_dir(self, bset):
+        """
+        Create a new backup target directory
+        based on today's date and point the
+        'currrent' symlink to it.
+        """
         link = self.get_backup_dir(bset)
         base, target = os.path.dirname(link), self.get_today()
         target_full = os.path.join(base, target)
