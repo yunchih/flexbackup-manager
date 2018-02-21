@@ -250,11 +250,14 @@ class BackupManager:
         tmpd = tempfile.mkdtemp()
         tmplink = os.path.join(tmpd, "l")
         try:
-            if os.path.islink(link):
-                os.symlink(target, tmplink)
-                os.rename(tmplink, link)
+            if self.dry_run:
+                self.log.info("Creating symlink: %s -> %s" % (link, target))
             else:
-                os.symlink(target, link)
+                if os.path.islink(link):
+                    os.symlink(target, tmplink)
+                    os.rename(tmplink, link)
+                else:
+                    os.symlink(target, link)
         except OSError as err:
             shutil.rmtree(tmpd)
             self.err("Failed creating symlink: %s -> %s: %s" % (link, target, err))
@@ -324,7 +327,10 @@ class BackupManager:
 
         try:
             if not os.path.exists(target_full):
-                os.makedirs(target_full)
+                if self.dry_run:
+                    self.log.info("Creating target directory: %s" % target)
+                else:
+                    os.makedirs(target_full)
         except OSError as err:
             self.err("Error creating directory %s: %s" % (target, err))
 
@@ -408,13 +414,15 @@ def main():
     parser.add_argument("-c", "--config", action='store',
                         type=str, required=True, metavar="[config file path]",
                         help="The path to the configuration file in YAML format")
+    parser.add_argument("-n", "--dryrun", action='store_true',
+                        help="Show what will be done without performing actual backup")
     args = parser.parse_args()
 
     # logging
     logging.basicConfig(level=logging.DEBUG, format=CONF_LOG_FORMAT)
     logger = logging.getLogger("backup")
     conf = load_yaml(args.config)
-    backup_manager = BackupManager(conf, logger, dry_run=False)
+    backup_manager = BackupManager(conf, logger, dry_run=args.dryrun)
     backup_manager.do_backup()
 
 if __name__ == "__main__":
