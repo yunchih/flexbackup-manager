@@ -138,6 +138,7 @@ class BackupManager:
         self.tier1 = self.get(tiers, 'tier1', "backup_tiers")
         self.tier2 = self.get(tiers, 'tier2', "backup_tiers")
         self.subdir_expansions = self.get(conf, 'subdirectory_expansions')
+        self.exclude_patterns = self.get(conf, 'exclude_patterns')
         self.dry_run = "-n" if dry_run else ""
 
         inc_freqs = self.get(conf, "incremental_backup_frequency")
@@ -243,6 +244,18 @@ class BackupManager:
             return [d for d in listing if os.path.isdir(d)]
         return [path]
 
+    def get_exclude_pattern_str(self):
+        """
+        Generate exclude pattern strings in flexbackup.conf
+        """
+        if not isinstance(self.exclude_patterns, list):
+            self.err("Exclude patterns shall be a list")
+
+        pat_str = ""
+        for i, pat in enumerate(self.exclude_patterns):
+            pat_str += "$exclude_expr[{}] = '{}';\n".format(i, pat)
+        return pat_str
+
     def gen_conf(self, bset):
         """ Generate our own flexbackup.conf """
         if not self.conf_template:
@@ -255,6 +268,7 @@ class BackupManager:
         for lhs, rhs in (("@@SET_NAME@@", bset),
                          ("@@SET_CONTENT@@", bdirs),
                          ("@@BACKUP_STORE_DIR@@", self.get_backup_dir(bset)),
+                         ("@@BACKUP_EXCLUDE_PATTERN@@", self.get_exclude_pattern_str()),
                          ("@@GZIP@@", self.tmpfiles['gzip']),
                          ("@@TAR@@", self.tmpfiles['tar'])):
             conf_str = conf_str.replace(lhs, rhs)

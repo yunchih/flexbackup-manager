@@ -78,27 +78,7 @@ $traverse_fs = 'false';
 # Matches paths, not filenames, so put .* on the front/back as needed.
 # Comment these out to exclude nothing.
 
-# cache file
-$exclude_expr[0] = '.*/\.?[Cc]ache/.*';
-# swap files
-$exclude_expr[1] = '.*~$';
-# Node.js
-$exclude_expr[2] = '.*/\.npm/.*';
-$exclude_expr[3] = '.*/node_modules/.*';
-# Firefox
-$exclude_expr[4] = '.*/\.mozilla/firefox/.*';
-# Ruby
-$exclude_expr[5] = '.*/\.gem/.*';
-# Python
-$exclude_expr[6] = '.*/python[0-9.]*/site-packages/.*';
-# Machine Learning
-$exclude_expr[7] = '.*/\.keras/.*';
-$exclude_expr[8] = '.*/\.theano/.*';
-# Haskell
-# $exclude_expr[9] = '.*/\.cabal/.*';
-# Gnome
-# $exclude_expr[10] = '.*/\.local/share/tracker/.*';
-# $exclude_expr[11] = '.*/\.local/share/zeitgeist/.*';
+@@BACKUP_EXCLUDE_PATTERN@@
 
 # If true (default), and using a tape device, level zero "set" backups
 # assume you want to erase and use a new tape for each set. If false, level
@@ -116,8 +96,8 @@ $erase_rewind_only = 'false';
 
 $logdir = '/var/log/flexbackup';   # directory for log files
 $comp_log = 'gzip';                # compress log? false/gzip/bzip2/compress/zip
-$staticlogs = 'true';             # static log filenames w/ no date stamp
-$prefix = '';		           # log files will start with this prefix
+$staticlogs = 'true';              # static log filenames w/ no date stamp
+$prefix = '';		               # log files will start with this prefix
 $tmpdir = '/tmp';                  # used for temporary refdate files, etc
 $stampdir = '/var/lib/flexbackup'; # directory for backup timestamps
 $index = '/var/lib/flexbackup/index'; # DB filename for tape indexes

@@ -89,6 +89,27 @@
 root_directory: "/e"
 dest_directory: "/backup/nfs"
 
+exclude_patterns:
+    # Cache
+    - '.*/\.?[Cc]ache/.*'
+    # Node.js
+    - '.*/\.npm/.*'
+    - '.*/node_modules/.*'
+    # Firefox
+    - '.*/\.mozilla/firefox/.*'
+    # Ruby
+    - '.*/\.gem/.*'
+    # Python
+    - '.*/python[0-9.]*/site-packages/.*'
+    # Machine Learning
+    - '.*/\.keras/.*'
+    - '.*/\.theano/.*'
+    # Haskell
+    - '.*/\.cabal/.*'
+    # Gnome
+    - '.*/\.local/share/tracker/.*'
+    - '.*/\.local/share/zeitgeist/.*'
+
 subdirectory_expansions:
     alumni_bebi_master: true
     alumni_bebi_phd:    true
