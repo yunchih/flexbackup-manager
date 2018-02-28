@@ -1,0 +1,13 @@
+[Unit]
+Description=Flexbackup manager timer
+
+[Timer]
+# OnBootSec=10min
+# OnUnitActiveSec=1d
+# Daily at 1am
+OnCalendar=*-*-* 01:00:00
+Persistent=True
+Unit=flexbackup-manager.service
+
+[Install]
+WantedBy=basic.target

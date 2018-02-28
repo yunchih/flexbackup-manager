@@ -1,0 +1,5 @@
+flexbackup.conf.tmpl etc/flexbackup-manager
+flexbackup-manager-conf.yaml etc/flexbackup-manager
+flexbackup-manager usr/bin
+flexbackup-manager.service lib/systemd/system
+flexbackup-manager.timer lib/systemd/system

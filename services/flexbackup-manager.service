@@ -1,0 +1,13 @@
+[Unit]
+Description=Flexbackup Manager
+DefaultDependencies=no
+Before=network.target
+Wants=local-fs.target
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/flexbackup-manager
+
+[Install]
+WantedBy=multi-user.target
