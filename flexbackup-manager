@@ -19,7 +19,8 @@ DESCRIPTION = '''
     different SLAs.
 '''
 
-CONF_BACKUP_CONF_TEMPLATE_FILE = "flexbackup.conf.tmpl"
+CONF_BACKUP_CONF_TEMPLATE_FILE = "/etc/flexbackup-manager/flexbackup.conf.tmpl"
+CONF_DEFAULT_PATH = "/etc/flexbackup-manager/flexbackup-manager.conf"
 CONF_TEMPFILE_PREFIX = "flexbackup-"
 CONF_SUBDIR_EXCLUDE_LIST = ["lost+found"]
 CONF_BACKUP_EXEC = "flexbackup"
@@ -412,7 +413,7 @@ def main():
     # cmd arguments
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument("-c", "--config", action='store',
-                        type=str, required=True, metavar="[config file path]",
+                        type=str, metavar="[config file path]", default=CONF_DEFAULT_PATH,
                         help="The path to the configuration file in YAML format")
     parser.add_argument("-n", "--dryrun", action='store_true',
                         help="Show what will be done without performing actual backup")
