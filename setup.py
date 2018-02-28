@@ -6,7 +6,7 @@ setup(
     author = "Chen Yun-Chih",
     author_email = "yunchih@csie.ntu.edu.tw",
     description = ("Flexbackup scheduling manager"),
-    license = "BSD",
+    license = "MIT",
     keywords = "flexbackup backup",
     url = "http://packages.python.org/an_example_pypi_project",
     scripts = ['flexbackup-manager'],
