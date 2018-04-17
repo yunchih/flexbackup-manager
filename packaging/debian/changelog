@@ -1,3 +1,11 @@
+
+flexbackup-manager (0.0.1-2) unstable; urgency=medium
+
+  * Fix broken symlink
+  * Add missing dry run
+
+ -- Chen YunChih <yunchih@csie.ntu.edu.tw>  Tue, 17 Apr 2018 21:27:48  -0800
+
 flexbackup-manager (0.0.1-1) unstable; urgency=medium
 
   * Initial Release.
