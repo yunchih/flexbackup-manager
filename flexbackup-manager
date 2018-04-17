@@ -394,7 +394,8 @@ class BackupManager:
                 do_clean = True
                 try:
                     self.log.info("Removing old backup: %s" % rm_path)
-                    shutil.rmtree(rm_path)
+                    if not self.dry_run:
+                        shutil.rmtree(rm_path)
                 except OSError as err:
                     self.err("Error removing directory '%s' during GC: %s" % (rm_path, err))
             return do_clean
