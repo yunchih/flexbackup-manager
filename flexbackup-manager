@@ -26,7 +26,6 @@ import datetime
 import logging
 import os
 import shutil
-import stat
 import subprocess
 import sys
 import tempfile
@@ -267,23 +266,24 @@ class BackupManager:
         """ Generate backup destination directory """
         return os.path.join(self.backup_dest, bset, CONF_BACKUP_CURDIR)
 
-    def gen_symlink_atomic(self, target, link):
-        """ Atomically updating a symlink """
-        tmpd = tempfile.mkdtemp()
-        tmplink = os.path.join(tmpd, "l")
-        try:
-            if self.dry_run:
-                self.log.info("Creating symlink: %s -> %s" % (link, target))
-            else:
-                if os.path.islink(link):
-                    os.symlink(target, tmplink)
-                    os.rename(tmplink, link)
-                else:
-                    os.symlink(target, link)
-        except OSError as err:
-            shutil.rmtree(tmpd)
-            self.err("Failed creating symlink: %s -> %s: %s" % (link, target, err))
-        shutil.rmtree(tmpd)
+    def do_update_symlink(self, target, link):
+        """
+        Update a symlink or create one if not previously exists
+        """
+        if self.dry_run:
+            self.log.info("Creating symlink: %s -> %s" % (link, target))
+        else:
+            # Removing existing one
+            if os.path.islink(link):
+                try:
+                    os.unlink(link)
+                except OSError as err:
+                    self.err("Failed unlinking old symlink: %s: %s" % (link, err))
+
+            try:
+                os.symlink(target, link)
+            except OSError as err:
+                self.err("Failed creating symlink: %s -> %s: %s" % (link, target, err))
 
 
     def do_run_backup_prog(self, bset, level):
@@ -341,7 +341,7 @@ class BackupManager:
         """
         Create a new backup target directory
         based on today's date and point the
-        'currrent' symlink to it.
+        'current' symlink to it.
         """
         link = self.get_backup_dir(bset)
         base, target = os.path.dirname(link), self.get_today()
@@ -350,13 +350,25 @@ class BackupManager:
         try:
             if not os.path.exists(target_full):
                 if self.dry_run:
-                    self.log.info("Creating target directory: %s" % target)
+                    self.log.info("Creating target directory: %s" % target_full)
                 else:
                     os.makedirs(target_full)
         except OSError as err:
-            self.err("Error creating directory %s: %s" % (target, err))
+            self.err("Error creating directory %s: %s" % (target_full, err))
 
-        self.gen_symlink_atomic(target, link)
+        cwd = os.getcwd()
+
+        try:
+            os.chdir(base)
+        except OSError as err:
+            self.err("Error chdir to %s: %s" % (base, err))
+
+        self.do_update_symlink(target, link)
+
+        try:
+            os.chdir(cwd)
+        except OSError as err:
+            self.err("Error chdir to %s: %s" % (cwd, err))
 
 
     def do_backup_gc(self):
