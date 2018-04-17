@@ -29,11 +29,11 @@ ${PKGFULL}.orig.tar.gz: ${PKGFULL}
 
 ${PKGFULL}:
 	@mkdir -p $@
-	@cp -a flexbackup-manager flexbackup-manager-conf.yaml flexbackup.conf.tmpl setup.py packaging/debian $@
-	@cp -a services/* $@
+	@cp -a flexbackup-manager flexbackup.conf.tmpl setup.py packaging/debian $@
+	@cp -a services examples $@
 
 debian: ${PKG}-${VERSION} ${PKG}-${VERSION}.orig.tar.gz
 	@cd ${PKG}-${VERSION} && debuild -us -uc -b
 
 clean:
-	rm -rf *.changes *.build *.deb ${PKGFULL}*
+	rm -rf *.changes *.build *.deb ${PKGFULL}* ${PKG}-${VERSION} ${PKG}-${VERSION}.orig.tar.gz

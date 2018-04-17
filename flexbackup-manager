@@ -40,7 +40,7 @@ DESCRIPTION = '''
 '''
 
 CONF_BACKUP_CONF_TEMPLATE_FILE = "/etc/flexbackup-manager/flexbackup.conf.tmpl"
-CONF_DEFAULT_PATH = "/etc/flexbackup-manager/flexbackup-manager.conf"
+CONF_DEFAULT_PATH = "/etc/flexbackup-manager/flexbackup-manager-conf.yaml"
 CONF_TEMPFILE_PREFIX = "flexbackup-"
 CONF_SUBDIR_EXCLUDE_LIST = ["lost+found"]
 CONF_BACKUP_EXEC = "flexbackup"
