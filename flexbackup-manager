@@ -415,12 +415,13 @@ class BackupManager:
         _do_backup_gc(tier2, CONF_BACKUP_TIER2_RETENTION)
 
 
-    def do_backup(self):
+    def do_backup(self, keeptemp=False):
         """ Backup main method """
 
         # Clean generated temporary files when the script stops
-        import atexit
-        atexit.register(self.clean_tmpfiles)
+        if not keeptemp:
+            import atexit
+            atexit.register(self.clean_tmpfiles)
 
         self.log.debug("Running cyclic backup at index (%s/%s)"
                        % (self.backup_cycle_index, len(self.backup_cycle_listing)))
@@ -451,6 +452,8 @@ def main():
                         help="The path to the configuration file in YAML format")
     parser.add_argument("-n", "--dryrun", action='store_true',
                         help="Show what will be done without performing actual backup")
+    parser.add_argument("-k", "--keeptemp", action='store_true',
+                        help="Don't delete generated temporary files (for debugging purpose)")
     args = parser.parse_args()
 
     # logging
@@ -458,7 +461,7 @@ def main():
     logger = logging.getLogger("backup")
     conf = load_yaml(args.config)
     backup_manager = BackupManager(conf, logger, dry_run=args.dryrun)
-    backup_manager.do_backup()
+    backup_manager.do_backup(keeptemp=args.keeptemp)
 
 if __name__ == "__main__":
     try:
