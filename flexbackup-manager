@@ -250,7 +250,10 @@ class BackupManager:
                             ".____" + CONF_TEMPFILE_PREFIX + bin_name)
         self.tmpfiles[bin_name] = tmpf
 
-        content = "#!/bin/sh\n" + bin_content + "\n"
+        content = "\n".join(["#!/bin/sh",
+                            "set -e", # exit when error occurs
+                            "set -x", # showing what command is executed
+                            bin_content, ""])
         # Just create an executable file first
         # Cannot use chmod as that'll keep the
         # written file opened and /bin/sh will
