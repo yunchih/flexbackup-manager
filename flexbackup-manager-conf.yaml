@@ -3,6 +3,7 @@ root_directory: "/e"
 dest_directory: "/backup/nfs"
 compression: "zstd"
 compression_parallelism: 10
+compression_level: 3
 
 exclude_patterns:
     # Cache

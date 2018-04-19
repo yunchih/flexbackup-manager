@@ -20,7 +20,7 @@ $prune{'/'} = "tmp proc";
 
 # Compression
 $compress = 'gzip'; # one of false/gzip/bzip2/zip/compress/hardware
-$compr_level = '6'; # compression level (1-9) (for gzip/bzip2/zip)
+$compr_level = '@@COMPRESSION_LEVEL@@'; # compression level (1-9) (for gzip/bzip2/zip)
 
 # Buffering program - to help streaming
 $buffer = 'false';          # one of false/buffer/mbuffer
