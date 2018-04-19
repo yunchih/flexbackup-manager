@@ -101,11 +101,19 @@ class BackupManager:
         self.backup_cycle_listing = self.get_backup_cycle_listing()
         self.backup_cycle_index = self.get_cur_cycle_index(len(self.backup_cycle_listing))
 
-        # Generate shell script wrappers of pigz and tar so we can add
-        # some parameters we want
+        compr_algo = self.get(conf, "compression")
+        compr_nproc = self.get(conf, "compression_parallelism")
 
-        # Don't let pigz consume all CPUs, just part of them
-        self.gen_temp_exec('gzip', 'exec /usr/bin/env pigz -p 10 -f "$@"')
+        if compr_algo == "zstd":
+            compr_algo += " -T" + compr_nproc
+        elif compr_algo == "pigz":
+            compr_algo += " -p" + compr_nproc
+        elif compr_algo != "gzip":
+            self.err("Unrecognized compressor: %s" % compr_algo)
+
+        # Generate shell script wrappers of compressor and tar so we can add
+        # some parameters we want
+        self.gen_temp_exec('gzip', 'exec /usr/bin/env %s -f "$@"' % compr_algo)
         # Try using 'nocache' to prevent cache pollution
         self.gen_temp_exec('tar', 'exec /usr/bin/env nocache -n 2 /bin/tar --numeric-owner "$@"')
 
@@ -251,9 +259,9 @@ class BackupManager:
         self.tmpfiles[bin_name] = tmpf
 
         content = "\n".join(["#!/bin/sh",
-                            "set -e", # exit when error occurs
-                            "set -x", # showing what command is executed
-                            bin_content, ""])
+                             "set -e", # exit when error occurs
+                             "set -x", # showing what command is executed
+                             bin_content, ""])
         # Just create an executable file first
         # Cannot use chmod as that'll keep the
         # written file opened and /bin/sh will
