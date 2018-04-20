@@ -105,10 +105,10 @@ class BackupManager:
         compr_nproc = self.get(conf, "compression_parallelism")
         self.compr_level = self.get(conf, "compression_level")
 
-        if compr_algo == "zstd":
-            compr_algo += " -T" + compr_nproc
-        elif compr_algo == "pigz":
-            compr_algo += " -p" + compr_nproc
+        if compr_algo == "pzstd" or compr_algo == "pigz":
+            compr_algo += " -p" + str(compr_nproc)
+        elif compr_algo == "zstd":
+            compr_algo += " -T" + str(compr_nproc)
         elif compr_algo != "gzip":
             self.err("Unrecognized compressor: %s" % compr_algo)
 
@@ -230,7 +230,7 @@ class BackupManager:
         conf_str = self.conf_template
         for lhs, rhs in (("@@SET_NAME@@", bset),
                          ("@@SET_CONTENT@@", bdirs),
-                         ("@@COMPRESSION_LEVEL@@", self.compr_level),
+                         ("@@COMPRESSION_LEVEL@@", str(self.compr_level)),
                          ("@@BACKUP_STORE_DIR@@", self.get_backup_dir(bset)),
                          ("@@BACKUP_EXCLUDE_PATTERN@@", self.get_exclude_pattern_str()),
                          ("@@GZIP@@", self.tmpfiles['gzip']),
