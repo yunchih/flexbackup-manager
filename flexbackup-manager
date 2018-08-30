@@ -116,7 +116,7 @@ class BackupManager:
         # some parameters we want
         self.gen_temp_exec('gzip', 'exec /usr/bin/env %s -f "$@"' % compr_algo)
         # Try using 'nocache' to prevent cache pollution
-        self.gen_temp_exec('tar', 'exec /usr/bin/env nocache -n 2 /bin/tar --numeric-owner "$@"')
+        self.gen_temp_exec('tar', 'exec /usr/bin/env nocache -n 2 /bin/tar --no-recursion --numeric-owner "$@"')
 
     def err(self, err_msg=""):
         """ Generate error message and exit """
